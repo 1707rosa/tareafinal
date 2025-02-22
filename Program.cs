@@ -1,0 +1,81 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+public class Pedido
+{
+    public List<Producto> Productos { get; set; }
+}
+
+public class Producto
+{
+    public string Nombre { get; set; }
+    public int Cantidad { get; set; }
+}
+
+public class Program
+{
+    public static async Task Main(string[] args)
+    {
+        Pedido pedido = new Pedido
+        {
+            Productos = new List<Producto>
+            {
+                new Producto { Nombre = "Camiseta", Cantidad = 2 },
+                new Producto { Nombre = "Pantalón", Cantidad = 1 },
+                new Producto { Nombre = "Zapatos", Cantidad = 1 }
+            }
+        };
+
+        await ProcesarPedidoAsync(pedido);
+    }
+
+    public static async Task ProcesarPedidoAsync(Pedido pedido)
+    {
+        List<Task> tareas = new List<Task>();
+
+        foreach (Producto producto in pedido.Productos)
+        {
+            tareas.Add(ProcesarProductoAsync(producto));
+        }
+
+        await Task.WhenAll(tareas);
+        Console.WriteLine("Pedido procesado con éxito.");
+    }
+
+    public static async Task ProcesarProductoAsync(Producto producto)
+    {
+        try
+        {
+            await VerificarStockAsync(producto);
+            decimal precio = await CalcularPrecioAsync(producto);
+            await EnviarALogisticaAsync(producto, precio);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error procesando {producto.Nombre}: {ex.Message}");
+        }
+    }
+
+    public static async Task VerificarStockAsync(Producto producto)
+    {
+        await Task.Delay(new Random().Next(500, 1500));
+        Console.WriteLine($"Stock verificado para {producto.Nombre}");
+    }
+
+    public static async Task<decimal> CalcularPrecioAsync(Producto producto)
+    {
+        await Task.Delay(new Random().Next(500, 1500));
+        decimal precio = new Random().Next(10, 100);
+        Console.WriteLine($"Precio calculado para {producto.Nombre}: ${precio}");
+        return precio;
+    }
+
+    public static async Task EnviarALogisticaAsync(Producto producto, decimal precio)
+    {
+        await Task.Delay(new Random().Next(500, 1500));
+        Console.WriteLine($"Producto {producto.Nombre} enviado a logística con precio ${precio}");
+    }
+}
