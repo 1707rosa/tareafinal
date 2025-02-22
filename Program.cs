@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -38,25 +38,33 @@ public class Program
 
         foreach (Producto producto in pedido.Productos)
         {
-            tareas.Add(ProcesarProductoAsync(producto));
+            var tareaPadre = Task.Factory.StartNew(() =>
+            {
+                var tareaHija = Task.Factory.StartNew(async () =>
+                {
+                    await VerificarStockAsync(producto);
+                    decimal precio = await CalcularPrecioAsync(producto);
+                    await EnviarALogisticaAsync(producto, precio);
+                }, TaskCreationOptions.AttachedToParent).Unwrap();
+
+                tareaHija.ContinueWith(t =>
+                {
+                    Console.WriteLine($"Producto {producto.Nombre} procesado correctamente.");
+                }, TaskContinuationOptions.OnlyOnRanToCompletion);
+
+                tareaHija.ContinueWith(t =>
+                {
+                    Console.WriteLine($"Error al procesar {producto.Nombre}: {t.Exception?.InnerException?.Message}");
+                }, TaskContinuationOptions.OnlyOnCanceled);
+
+                return tareaHija;
+            }).Unwrap();
+
+            tareas.Add(tareaPadre);
         }
 
-        await Task.WhenAll(tareas);
-        Console.WriteLine("Pedido procesado con éxito.");
-    }
-
-    public static async Task ProcesarProductoAsync(Producto producto)
-    {
-        try
-        {
-            await VerificarStockAsync(producto);
-            decimal precio = await CalcularPrecioAsync(producto);
-            await EnviarALogisticaAsync(producto, precio);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error procesando {producto.Nombre}: {ex.Message}");
-        }
+        await Task.WhenAny(Task.WhenAll(tareas), Task.Delay(5000));
+        Console.WriteLine("Procesamiento de pedido finalizado.");
     }
 
     public static async Task VerificarStockAsync(Producto producto)
